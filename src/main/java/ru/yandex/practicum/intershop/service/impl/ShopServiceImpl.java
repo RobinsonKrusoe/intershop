@@ -90,6 +90,8 @@ public class ShopServiceImpl implements ShopService {
         return OrderMapper.toOrderDTO(geActiveOrder());
     }
 
+
+    @Transactional
     public Order geActiveOrder() {
         Order activeOrder = orderRep.findActiveOrder();
         if (activeOrder == null) {    //Если отсутствует активная корзина - создать
@@ -116,6 +118,7 @@ public class ShopServiceImpl implements ShopService {
      * Совершение покупки по активной корзине
      */
     @Override
+    @Transactional
     public void buy() {
         Order order = orderRep.findActiveOrder();
         order.setStat(OrderStatus.BUY);
@@ -148,6 +151,7 @@ public class ShopServiceImpl implements ShopService {
      * @param ware Товар
      */
     @Override
+    @Transactional
     public void addWare(InWareDTO ware) throws IOException {
         Ware newWare = WareMapper.toWare(ware);
         wareRep.save(newWare);

@@ -72,25 +72,6 @@ public class ShopController {
                                                         SortKind.valueOf(sort),
                                                         PageRequest.of(pageNumber - 1, pageSize));
 
-//        List<List<Employee>> divided = employees.stream().collect(
-//                Collectors.teeing(
-//                        Collectors.filtering(Employee::isActive, Collectors.toList()),
-//                        Collectors.filtering(Predicate.not(Employee::isActive), Collectors.toList()),
-//                        List::of
-//                ));
-
-//        List<List<Integer>> result = IntStream.range(0, list.size() / 100)
-//                .mapToObj(index -> list.subList(index * 100, index * 100 + 100))
-//                .collect(Collectors.toList());
-//
-//        final int n = 3;
-//        List<Integer> arr = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 0);
-//        int rows = 1 + arr.size() / n;
-//        List<List<Integer>> sublists = IntStream.range(0, rows)
-//                .mapToObj(i -> arr.subList(n * i, Math.min(n + (n * i), arr.size())))
-//                .collect(Collectors.toList());
-//        System.out.println(sublists);
-
         List<List<ItemDTO>> sublists = IntStream.range(0, (1 + page.getContent().size())/2)
                 .mapToObj(i -> page.getContent().subList(2*i, Math.min(2 + (2*i), page.getContent().size())))
                 .collect(Collectors.toList());
