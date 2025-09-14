@@ -8,6 +8,10 @@ import java.util.Set;
 
 public interface ItemRep extends JpaRepository<Item, Long> {
 
+    /**
+     * Выборка товаров активной корзины
+     * @return Список элементов корзины
+     */
     @Query(value = """
                    select i.id,
                           i.order_id,
@@ -22,6 +26,11 @@ public interface ItemRep extends JpaRepository<Item, Long> {
             nativeQuery = true)
     Set<Item> findAllItems();
 
+    /**
+     * Получение элемента активной корзины по идентификатору товара
+     * @param wareId Идентификатор товара
+     * @return Элемент корзины
+     */
     @Query(value = """
                    select i.*
                      from items i

@@ -5,6 +5,10 @@ import org.springframework.data.jpa.repository.Query;
 import ru.yandex.practicum.intershop.model.Order;
 
 public interface OrderRep extends JpaRepository<Order, Long>{
+    /**
+     * Выборка активной корзины
+     * @return Заказ
+     */
     @Query(value = """
                    select o.* from orders o
                     where o.stat = 'NEW'

@@ -4,7 +4,6 @@ import ru.yandex.practicum.intershop.dto.InWareDTO;
 import ru.yandex.practicum.intershop.model.Ware;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
 
 public class WareMapper {
     public static Ware toWare(InWareDTO ware) throws IOException {

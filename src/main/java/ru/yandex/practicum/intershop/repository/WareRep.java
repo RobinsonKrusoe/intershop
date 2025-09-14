@@ -6,6 +6,7 @@ import ru.yandex.practicum.intershop.model.Ware;
 import java.util.List;
 
 public interface WareRep extends JpaRepository<Ware, Long> {
+    //Набор выборок товаров с поиском/без и сортировкой/без по названию или цене
     List<Ware> findAllByOrderByPrice();
     List<Ware> findAllByOrderByTitle();
     List<Ware> findAllByTitleLikeIgnoreCase(String search);

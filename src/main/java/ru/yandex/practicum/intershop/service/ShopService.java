@@ -11,6 +11,9 @@ import ru.yandex.practicum.intershop.model.SortKind;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * Класс сервиса для работы с магазином
+ */
 public interface ShopService {
     /**
      * Изменение количества товара в корзине

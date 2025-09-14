@@ -21,8 +21,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static java.time.LocalDateTime.now;
-
 @Slf4j
 @RestController
 @RequestMapping("/")

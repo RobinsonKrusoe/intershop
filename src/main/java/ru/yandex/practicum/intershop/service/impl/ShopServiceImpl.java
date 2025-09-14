@@ -44,7 +44,7 @@ public class ShopServiceImpl implements ShopService {
     /**
      * Изменение количества товара в корзине
      *
-     * @param id     Идентификатор элемента корзины
+     * @param id     Идентификатор товара
      * @param action Действие
      */
     @Override
@@ -81,7 +81,7 @@ public class ShopServiceImpl implements ShopService {
     }
 
     /**
-     * Получение/создание активной корзины
+     * Получение активной корзины
      *
      * @return Заказ
      */
@@ -90,7 +90,11 @@ public class ShopServiceImpl implements ShopService {
         return OrderMapper.toOrderDTO(geActiveOrder());
     }
 
-
+    /**
+     * Получение/создание активной корзины
+     *
+     * @return Заказ
+     */
     @Transactional
     public Order geActiveOrder() {
         Order activeOrder = orderRep.findActiveOrder();
@@ -106,7 +110,7 @@ public class ShopServiceImpl implements ShopService {
     /**
      * Получение элемента корзины
      *
-     * @param id Идентификатор элемента корзины
+     * @param id Идентификатор товара
      * @return Элемент корзины
      */
     @Override
@@ -136,7 +140,7 @@ public class ShopServiceImpl implements ShopService {
     }
 
     /**
-     * Получение картинки товара
+     * Получение изображения товара
      *
      * @param id Идентификатор товара
      * @return Картинка
@@ -147,7 +151,7 @@ public class ShopServiceImpl implements ShopService {
     }
 
     /**
-     * Добавление товара в базу
+     * Добавление товара в базу (наполнение справочника товаров)
      * @param ware Товар
      */
     @Override
@@ -161,7 +165,7 @@ public class ShopServiceImpl implements ShopService {
      * Получение товаров с фильтрацией и пагинацией
      *
      * @param search   Строка поиска
-     * @param sortKind
+     * @param sortKind Тип сортировки
      * @param pageable Пагинация
      * @return Страница товаров/элементов корзины
      */
@@ -174,6 +178,7 @@ public class ShopServiceImpl implements ShopService {
         List<Ware> dbItems = null;
         OrderDTO order = getOrder();
 
+        //Подготовка нужной выборки
         if (search == null || search.isEmpty()) {
             switch (sortKind) {
                 case NO -> dbItems = wareRep.findAll();
@@ -190,6 +195,7 @@ public class ShopServiceImpl implements ShopService {
 
         List<ItemDTO> items = dbItems.stream().map(ItemMapper::toItemDTO).toList();
 
+        //Разбиение на страницы
         if (items.size()< startItem) {
             list = Collections.emptyList();
         } else {
@@ -197,6 +203,7 @@ public class ShopServiceImpl implements ShopService {
             list = items.subList(startItem, toIndex);
         }
 
+        //Актуализация количества для товаров, которые уже находятся в корзине
         for (var orderItem : order.getItems()) {
             for (var listItem : list) {
                 if (listItem.getId() == orderItem.getId())
@@ -209,6 +216,11 @@ public class ShopServiceImpl implements ShopService {
         return itemsPage;
     }
 
+    /**
+     * Получение заданного заказа
+     * @param id Идентификатор заказа
+     * @return
+     */
     @Override
     public OrderDTO getOrder(Long id) {
         return OrderMapper.toOrderDTO(orderRep.getReferenceById(id));

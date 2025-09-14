@@ -1,0 +1,22 @@
+services:
+  intershop:
+    restart: always
+    image: intershop_img
+    container_name: intershop_container
+    ports:
+      - "8080:8080"
+    depends_on:
+      - intershop-db
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://intershop-db:5432/intershop
+
+  intershop-db:
+    image: postgres:17.6-alpine
+    restart: always
+    container_name: intershop-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=intershop
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=admin

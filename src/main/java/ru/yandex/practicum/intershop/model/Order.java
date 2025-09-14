@@ -14,7 +14,6 @@ import java.util.List;
 /**
  * Класс заказа
  */
-
 @Entity
 @Table(name = "orders")
 @Getter
