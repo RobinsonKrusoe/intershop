@@ -86,22 +86,20 @@ public class ShopController {
     }
 
     /**
-     * в) POST "/main/items/{id}" - изменить количество товара в корзине
+     * в) POST "/main/items/{id}" - добавить товар (изменить количество) на главной странице
      * 	Параматры:
      * 		action - значение из перечисления PLUS|MINUS|DELETE (PLUS - добавить один товар, MINUS - удалить один товар, DELETE - удалить товар из корзины)
      * 	Возвращает:
      * 		редирект на "/main/items"
      */
     @PostMapping(path = "/main/items/{id}")
-    public ModelAndView changeItemAmount(@PathVariable("id") Long id,
+    public ModelAndView mainPageAmountChange(@PathVariable("id") Long id,
                                          @RequestParam("action") String action){
-        log.info("Get changeItemAmount id - {}, action - {}", id, action);
+        log.info("Post mainPageAmountChange id - {}, action - {}", id, action);
 
         serv.changeItemAmount(id, ItemAction.valueOf(action));
 
-        ModelAndView mv = new ModelAndView("redirect:/main/items");
-
-        return mv;
+        return new ModelAndView("redirect:/main/items");
     }
 
     /**
@@ -127,22 +125,20 @@ public class ShopController {
         return mv;
     }
     /**
-     * д) POST "/cart/items/{id}" - изменить количество товара в корзине
+     * д) POST "/cart/items/{id}" - изменить количество товара на странице корзины
      * 	Параматры:
      * 		action - значение из перечисления PLUS|MINUS|DELETE (PLUS - добавить один товар, MINUS - удалить один товар, DELETE - удалить товар из корзины)
      * 	Возвращает:
      * 		редирект на "/cart/items"
      */
     @PostMapping(path = "/cart/items/{id}")
-    public ModelAndView changeItemAmount1(@PathVariable("id") Long id,
+    public ModelAndView cartPageAmountChange(@PathVariable("id") Long id,
                                          @RequestParam("action") String action){
-        log.info("Get changeItemAmount1 id - {}, action - {}", id, action);
+        log.info("Post cartPageAmountChange id - {}, action - {}", id, action);
 
         serv.changeItemAmount(id, ItemAction.valueOf(action));
 
-        ModelAndView mv = new ModelAndView("redirect:/cart/items");
-
-        return mv;
+        return new ModelAndView("redirect:/cart/items");
     }
 
     /**
@@ -165,22 +161,20 @@ public class ShopController {
     }
 
     /**
-     * ж) POST "/items/{id}" - изменить количество товара в корзине
+     * ж) POST "/items/{id}" - изменить количество товара на странице карточки товара
      * 	Параматры:
      * 		action - значение из перечисления PLUS|MINUS|DELETE (PLUS - добавить один товар, MINUS - удалить один товар, DELETE - удалить товар из корзины)
      * 	Возвращает:
      * 		редирект на "/items/{id}"
      */
     @PostMapping(path = "/items/{id}")
-    public ModelAndView changeItemAmount2(@PathVariable("id") Long id,
-                                          @RequestParam("action") String action){
-        log.info("Get changeItemAmount2 id - {}, action - {}", id, action);
+    public ModelAndView itemPageAmountChange(@PathVariable("id") Long id,
+                                             @RequestParam("action") String action){
+        log.info("Post itemPageAmountChange id - {}, action - {}", id, action);
 
         serv.changeItemAmount(id, ItemAction.valueOf(action));
 
-        ModelAndView mv = new ModelAndView("redirect:/items/" + id);
-        mv.addObject("action", action);
-        return mv;
+        return new ModelAndView("redirect:/items/" + id);
     }
 
     /**
@@ -192,12 +186,11 @@ public class ShopController {
     public ModelAndView buy(){
         log.info("Get buy ");
 
-        Long orderId = serv.getOrder().getId();
+        long orderId = serv.getOrder().getId();
 
         serv.buy();
 
-        ModelAndView mv = new ModelAndView("redirect:/orders/" + orderId + "?newOrder=true");
-        return mv;
+        return new ModelAndView("redirect:/orders/" + orderId + "?newOrder=true");
     }
 
     /**

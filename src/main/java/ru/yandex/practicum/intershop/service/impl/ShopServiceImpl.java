@@ -1,8 +1,6 @@
 package ru.yandex.practicum.intershop.service.impl;
 
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,7 +19,6 @@ import ru.yandex.practicum.intershop.service.ShopService;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -96,7 +93,7 @@ public class ShopServiceImpl implements ShopService {
      * @return Заказ
      */
     @Transactional
-    public Order geActiveOrder() {
+    private Order geActiveOrder() {
         Order activeOrder = orderRep.findActiveOrder();
         if (activeOrder == null) {    //Если отсутствует активная корзина - создать
             activeOrder = new Order();
@@ -124,7 +121,7 @@ public class ShopServiceImpl implements ShopService {
     @Override
     @Transactional
     public void buy() {
-        Order order = orderRep.findActiveOrder();
+        Order order = geActiveOrder();
         order.setStat(OrderStatus.BUY);
         orderRep.save(order);
     }
@@ -171,49 +168,35 @@ public class ShopServiceImpl implements ShopService {
      */
     @Override
     public Page<ItemDTO> findAllItemsPaginated(String search, SortKind sortKind, Pageable pageable) {
-        int pageSize = pageable.getPageSize();
-        int currentPage = pageable.getPageNumber();
-        int startItem = currentPage * pageSize;
-        List<ItemDTO> list;
-        List<Ware> dbItems = null;
+        Page<Ware> itemPage = null;
         OrderDTO order = getOrder();
 
         //Подготовка нужной выборки
         if (search == null || search.isEmpty()) {
             switch (sortKind) {
-                case NO -> dbItems = wareRep.findAll();
-                case ALPHA -> dbItems = wareRep.findAllByOrderByTitle();
-                case PRICE -> dbItems = wareRep.findAllByOrderByPrice();
+                case NO -> itemPage = wareRep.findAll(pageable);
+                case ALPHA -> itemPage = wareRep.findAllByOrderByTitle(pageable);
+                case PRICE -> itemPage = wareRep.findAllByOrderByPrice(pageable);
             }
         } else {
             switch (sortKind) {
-                case NO -> dbItems = wareRep.findAllByTitleLikeIgnoreCase(search);
-                case ALPHA -> dbItems = wareRep.findAllByTitleLikeIgnoreCaseOrderByTitle(search);
-                case PRICE -> dbItems = wareRep.findAllByTitleLikeIgnoreCaseOrderByPrice(search);
+                case NO -> itemPage = wareRep.findAllByTitleLikeIgnoreCase(search, pageable);
+                case ALPHA -> itemPage = wareRep.findAllByTitleLikeIgnoreCaseOrderByTitle(search, pageable);
+                case PRICE -> itemPage = wareRep.findAllByTitleLikeIgnoreCaseOrderByPrice(search, pageable);
             }
         }
 
-        List<ItemDTO> items = dbItems.stream().map(ItemMapper::toItemDTO).toList();
-
-        //Разбиение на страницы
-        if (items.size()< startItem) {
-            list = Collections.emptyList();
-        } else {
-            int toIndex = Math.min(startItem + pageSize, items.size());
-            list = items.subList(startItem, toIndex);
-        }
+        Page<ItemDTO> dtoPage = itemPage.map(ItemMapper::toItemDTO);
 
         //Актуализация количества для товаров, которые уже находятся в корзине
-        for (var orderItem : order.getItems()) {
-            for (var listItem : list) {
-                if (listItem.getId() == orderItem.getId())
-                    listItem.setCount(orderItem.getCount());
+        for (var orderItem : order.getItems()) {            //Товары заказа
+            for (var listItem : dtoPage.getContent()) {     //товары на странице
+                if (listItem.getId() == orderItem.getId())  //Если товар уже есть в заказе
+                    listItem.setCount(orderItem.getCount());//заполнить количество
             }
         }
 
-        Page<ItemDTO> itemsPage = new PageImpl<ItemDTO>(list, PageRequest.of(currentPage, pageSize), items.size());
-
-        return itemsPage;
+        return dtoPage;
     }
 
     /**

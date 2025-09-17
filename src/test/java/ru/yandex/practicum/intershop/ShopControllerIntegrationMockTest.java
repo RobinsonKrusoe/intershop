@@ -4,8 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,8 +33,8 @@ import java.util.List;
 @SpringBootTest
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class ShopControllerIntegrationMockTest {
+
 	@Autowired
 	private MockMvc mockMvc;
 
@@ -62,6 +62,7 @@ class ShopControllerIntegrationMockTest {
 	 * Тест вызова корневой страницы
 	 */
 	@Test
+	@Sql("/test-truncate.sql")
 	void testGetRootPath() throws Exception {
 		mockMvc.perform(get("/"))
 				.andExpect(status().is3xxRedirection())
@@ -72,6 +73,7 @@ class ShopControllerIntegrationMockTest {
 	 * Тест вызова страницы добавления товара
 	 */
 	@Test
+	@Sql("/test-truncate.sql")
 	void testGetAddWarePage() throws Exception {
 		mockMvc.perform(get("/add/ware"))
 				.andExpect(status().isOk())
@@ -83,6 +85,7 @@ class ShopControllerIntegrationMockTest {
 	 * Тест вызова главной страницы
 	 */
 	@Test
+	@Sql("/test-truncate.sql")
 	void testGetMainPage() throws Exception {
 		//Создать товары
 		shopServ.addWare(ware1);
@@ -105,6 +108,7 @@ class ShopControllerIntegrationMockTest {
 	 * Тест вызова страницы изменения количества товара в корзине
 	 */
 	@Test
+	@Sql("/test-truncate.sql")
 	void testChangeItemAmount() throws Exception {
 		//Создать товар
 		shopServ.addWare(ware1);
@@ -133,6 +137,7 @@ class ShopControllerIntegrationMockTest {
 	 * Тест вызова страницы корзины
 	 */
 	@Test
+	@Sql("/test-truncate.sql")
 	void testGetCart() throws Exception {
 		//Создать товары
 		shopServ.addWare(ware1);
@@ -155,6 +160,7 @@ class ShopControllerIntegrationMockTest {
 	 * Тест  вызова получения элемента корзины
 	 */
 	@Test
+	@Sql("/test-truncate.sql")
 	void testGetItem() throws Exception {
 		//Создать товар
 		shopServ.addWare(ware1);
@@ -176,6 +182,7 @@ class ShopControllerIntegrationMockTest {
 	 */
 	@Test
 	@Transactional
+	@Sql("/test-truncate.sql")
 	void testBuy() throws Exception {
 		//Создать товар
 		shopServ.addWare(ware1);
@@ -199,6 +206,7 @@ class ShopControllerIntegrationMockTest {
 	 * Тест получения списка заказов
 	 */
 	@Test
+	@Sql("/test-truncate.sql")
 	void testGetOrders() throws Exception {
 		//Создать товары
 		shopServ.addWare(ware1);
@@ -229,6 +237,7 @@ class ShopControllerIntegrationMockTest {
 	 * Тест получения отдельного заказа
 	 */
 	@Test
+	@Sql("/test-truncate.sql")
 	void testGetOrder() throws Exception {
 		//Создать товары
 		shopServ.addWare(ware1);
