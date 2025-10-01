@@ -4,32 +4,40 @@ server:
 spring:
   application:
     name: intershop
-  jpa:
-    hibernate:
-      ddl-auto: none
-    properties:
-      hibernate:
-        format_sql: true
-    show-sql: true
-  datasource:
-    driverClassName: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/intershop
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/intershop
     username: postgres
     password: admin
+  data:
+    r2dbc:
+      repositories:
+        enabled: true
+
   sql:
     init:
       mode: always
+  thymeleaf:
+    encoding: UTF-8
+    cache: false
+  http:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
 
 ---
 spring:
   config:
     activate:
       on-profile: ci,test
-  datasource:
-    driverClassName: org.h2.Driver
-    url: jdbc:h2:mem:intershop
+  r2dbc:
+    url: r2dbc:h2:mem://./intershop
     username: test
-    password: test
+    password:
+  data:
+    r2dbc:
+      repositories:
+        enabled: true
   h2:
     console:
       enabled: true

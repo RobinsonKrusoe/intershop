@@ -1,42 +1,27 @@
 package ru.yandex.practicum.intershop.repository;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import org.springframework.stereotype.Repository;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import ru.yandex.practicum.intershop.model.Item;
 
-import java.util.Set;
-
-public interface ItemRep extends JpaRepository<Item, Long> {
-
-    /**
-     * Выборка товаров активной корзины
-     * @return Список элементов корзины
-     */
-    @Query(value = """
-                   select i.id,
-                          i.order_id,
-                          w.id ware_id,
-                          coalesce(i.count, 0) count,
-                          coalesce(i.created_at, w.created_at) created_at
-                     from wares w
-                     left join items i on w.id = i.ware_id
-                      and i.order_id = (select max(id) from orders o where o.stat = 'NEW')
-                    order by i.id nulls last, w.title
-                   """,
-            nativeQuery = true)
-    Set<Item> findAllItems();
+@Repository
+public interface ItemRep extends R2dbcRepository<Item, Long> {
+    Mono<Item> findByOrderIdAndWareId(Long orderId, Long wareId);
 
     /**
-     * Получение элемента активной корзины по идентификатору товара
-     * @param wareId Идентификатор товара
-     * @return Элемент корзины
+     * Удаление элемента корзины
+     * @param orderId   Идентификатор заказа
+     * @param wareId    Идентификатор товара
+     * @return
      */
-    @Query(value = """
-                   select i.*
-                     from items i
-                    where i.order_id = (select max(id) from orders o where o.stat = 'NEW')
-                      and i.ware_id = :wareId
-                   """,
-            nativeQuery = true)
-    Item getByWare_Id(Long wareId);
+    Mono<Void> deleteByOrderIdAndWareId(Long orderId, Long wareId);
+
+    /**
+     * Получение всех элементов заказа
+     * @param orderId   Идентификатор заказа
+     * @return
+     */
+    Flux<Item> findAllByOrderIdOrderByIdDesc(Long orderId);
 }

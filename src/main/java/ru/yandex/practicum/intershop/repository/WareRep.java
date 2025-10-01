@@ -1,15 +1,22 @@
 package ru.yandex.practicum.intershop.repository;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import org.springframework.stereotype.Repository;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import ru.yandex.practicum.intershop.model.Ware;
 
-public interface WareRep extends JpaRepository<Ware, Long> {
+@Repository
+public interface WareRep extends R2dbcRepository<Ware, Long> {
     //Набор выборок товаров с поиском/без и сортировкой/без по названию или цене
-    Page<Ware> findAllByOrderByPrice(Pageable pageable);
-    Page<Ware> findAllByOrderByTitle(Pageable pageable);
-    Page<Ware> findAllByTitleLikeIgnoreCase(String search, Pageable pageable);
-    Page<Ware> findAllByTitleLikeIgnoreCaseOrderByPrice(String search, Pageable pageable);
-    Page<Ware> findAllByTitleLikeIgnoreCaseOrderByTitle(String search, Pageable pageable);
+    Flux<Ware> findAllBy(Pageable pageable);
+    Flux<Ware> findAllByOrderByPrice(Pageable pageable);
+    Flux<Ware> findAllByOrderByTitle(Pageable pageable);
+    Flux<Ware> findAllByTitleLikeIgnoreCase(String search, Pageable pageable);
+    Flux<Ware> findAllByTitleLikeIgnoreCaseOrderByPrice(String search, Pageable pageable);
+    Flux<Ware> findAllByTitleLikeIgnoreCaseOrderByTitle(String search, Pageable pageable);
+
+    Mono<Long> countAllBy();
+    Mono<Long> countAllByTitleLikeIgnoreCase(String search);
 }

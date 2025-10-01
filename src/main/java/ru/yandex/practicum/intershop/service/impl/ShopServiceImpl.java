@@ -1,9 +1,12 @@
 package ru.yandex.practicum.intershop.service.impl;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import ru.yandex.practicum.intershop.dto.InWareDTO;
 import ru.yandex.practicum.intershop.dto.ItemDTO;
 import ru.yandex.practicum.intershop.dto.OrderDTO;
@@ -19,7 +22,6 @@ import ru.yandex.practicum.intershop.service.ShopService;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
  * Сервис для работы с корзиной покупок
@@ -43,38 +45,50 @@ public class ShopServiceImpl implements ShopService {
      *
      * @param id     Идентификатор товара
      * @param action Действие
+     * @return
      */
     @Override
     @Transactional
-    public void changeItemAmount(Long id, ItemAction action) {
-        Item item = itemRep.getByWare_Id(id);
+    public Mono<Void> changeItemAmount(Long id, ItemAction action) {
+        return switch (action) {
+            case DELETE -> delItem(id);
+            case PLUS -> incItem(id);
+            case MINUS -> decItem(id);
+        };
+    }
 
-        if (item == null && ItemAction.PLUS.equals(action)) {   //Если такого товара ещё нет в корзине - создать
-            Ware ware = wareRep.getReferenceById(id);
-            item = new Item();
-            item.setWare(ware);
-            item.setOrder(geActiveOrder());
-            item.setCount(1);
-            itemRep.save(item);
-        } else {
-            switch (action) {
-                case DELETE -> itemRep.delete(item);
-                case PLUS -> {
-                    item.setCount(item.getCount() + 1);
-                    itemRep.save(item);
-                }
-                case MINUS -> {
-                    if (item.getCount() == 1) {
-                        itemRep.delete(item);   //Если товар последний - просто удалить его из корзины
-                    }
+    private Mono<Void> delItem(Long id) {
+        return geActiveOrder()
+                .flatMap(order -> itemRep.deleteByOrderIdAndWareId(order.getId(), id));
+    }
 
-                    if (item.getCount() > 1) {
-                        item.setCount(item.getCount() - 1);
-                        itemRep.save(item);
-                    }
-                }
-            }
-        }
+    private Mono<Void> decItem(Long id) {
+        Mono<Order> order = geActiveOrder().cache();
+
+        return order.flatMap(o -> itemRep.findByOrderIdAndWareId(o.getId(), id))
+                    .flatMap(it -> {
+                                        if (it.getCount() > 1) {
+                                            it.setCount(it.getCount() - 1);
+                                            return itemRep.save(it);
+                                        } else {
+                                            return itemRep.deleteByOrderIdAndWareId(it.getOrderId(), id);
+                                        }
+                                    }
+                        )
+                .then();
+    }
+
+    @Transactional
+    private Mono<Void> incItem(Long id) {
+        Mono<Order> order = geActiveOrder().cache();
+
+        return order.flatMap(o -> itemRep.findByOrderIdAndWareId(o.getId(), id))
+                    .switchIfEmpty(order.map(o -> new Item(o.getId(), id, 0)))
+                    .flatMap(it -> {it.setCount(it.getCount() + 1);
+                                    return itemRep.save(it);
+                                   }
+                            )
+                    .then();
     }
 
     /**
@@ -83,8 +97,18 @@ public class ShopServiceImpl implements ShopService {
      * @return Заказ
      */
     @Override
-    public OrderDTO getOrder() {
-        return OrderMapper.toOrderDTO(geActiveOrder());
+    public Mono<OrderDTO> getOrder() {
+        return geActiveOrder().map(OrderMapper::toOrderDTO)
+                              .flatMap(order -> getOrderItems(order.getId())
+                                      .collectList()
+                                      .map(items -> {
+                                          order.setItems(items);
+                                          order.setTotalSum((float)items.stream()
+                                                                 .mapToDouble(i -> i.getCount() * i.getPrice())
+                                                                 .sum());
+                                          return order;
+                                      })
+                              );
     }
 
     /**
@@ -93,26 +117,34 @@ public class ShopServiceImpl implements ShopService {
      * @return Заказ
      */
     @Transactional
-    private Order geActiveOrder() {
-        Order activeOrder = orderRep.findActiveOrder();
-        if (activeOrder == null) {    //Если отсутствует активная корзина - создать
-            activeOrder = new Order();
-            activeOrder.setStat(OrderStatus.NEW);
-            activeOrder = orderRep.save(activeOrder);
-        }
-
-        return activeOrder;
+    private Mono<Order> geActiveOrder() {
+        return orderRep.findActiveOrder()
+                       .switchIfEmpty(Mono.defer(() -> {
+                                               Order activeOrder = new Order();
+                                               activeOrder.setStat(OrderStatus.NEW);
+                                               return orderRep.save(activeOrder);
+                                           })
+                       );
     }
 
     /**
-     * Получение элемента корзины
+     * Получение элемента активной корзины
      *
      * @param id Идентификатор товара
      * @return Элемент корзины
      */
     @Override
-    public ItemDTO getItem(Long id) {
-        return ItemMapper.toItemDTO(itemRep.getByWare_Id(id));
+    public Mono<ItemDTO> getItem(Long id) {
+        return geActiveOrder()
+                .flatMap(order -> itemRep.findByOrderIdAndWareId(order.getId(), id))
+                .switchIfEmpty(Mono.just(new Item()))
+                .zipWith(wareRep.findById(id)
+                                .map(ItemMapper::toItemDTO)
+                )
+                .map(itemAndWare -> {
+                    itemAndWare.getT2().setCount(itemAndWare.getT1().getCount());
+                    return itemAndWare.getT2();
+                });
     }
 
     /**
@@ -120,10 +152,13 @@ public class ShopServiceImpl implements ShopService {
      */
     @Override
     @Transactional
-    public void buy() {
-        Order order = geActiveOrder();
-        order.setStat(OrderStatus.BUY);
-        orderRep.save(order);
+    public Mono<Void> buy() {
+        return geActiveOrder().flatMap(o -> {
+                                                o.setStat(OrderStatus.BUY);
+                                                return orderRep.save(o);
+                                             }
+                                       )
+                              .then();
     }
 
     /**
@@ -132,8 +167,20 @@ public class ShopServiceImpl implements ShopService {
      * @return Список заказов
      */
     @Override
-    public List<OrderDTO> getAllOrders() {
-        return orderRep.findAll().stream().map(OrderMapper::toOrderDTO).toList();
+    public Flux<OrderDTO> getAllOrders() {
+        return orderRep.findAllByOrderByIdDesc()
+                       .map(OrderMapper::toOrderDTO)
+                       .flatMap(order -> getOrderItems(order.getId())
+                                            .collectList()
+                                            .map(items -> {
+                                                order.setItems(items);
+                                                order.setTotalSum((float)items.stream()
+                                                     .mapToDouble(i -> i.getCount() * i.getPrice())
+                                                     .sum()
+                                                );
+                                                return order;
+                                            })
+                       );
     }
 
     /**
@@ -143,8 +190,8 @@ public class ShopServiceImpl implements ShopService {
      * @return Картинка
      */
     @Override
-    public byte[] getImage(Long id) {
-        return wareRep.getReferenceById(id).getImage();
+    public Mono<byte[]> getImage(Long id) {
+        return wareRep.findById(id).map(Ware::getImage);
     }
 
     /**
@@ -153,9 +200,9 @@ public class ShopServiceImpl implements ShopService {
      */
     @Override
     @Transactional
-    public void addWare(InWareDTO ware) throws IOException {
+    public Mono<Void> addWare(InWareDTO ware) throws IOException {
         Ware newWare = WareMapper.toWare(ware);
-        wareRep.save(newWare);
+        return wareRep.save(newWare).then();
     }
 
     /**
@@ -167,36 +214,46 @@ public class ShopServiceImpl implements ShopService {
      * @return Страница товаров/элементов корзины
      */
     @Override
-    public Page<ItemDTO> findAllItemsPaginated(String search, SortKind sortKind, Pageable pageable) {
-        Page<Ware> itemPage = null;
-        OrderDTO order = getOrder();
+    public Mono<Page<ItemDTO>> findAllItemsPaginated(String search, SortKind sortKind, Pageable pageable) {
+        Flux<Ware> wares = null;
+        Mono<Long> totalCount = null;
 
         //Подготовка нужной выборки
         if (search == null || search.isEmpty()) {
-            switch (sortKind) {
-                case NO -> itemPage = wareRep.findAll(pageable);
-                case ALPHA -> itemPage = wareRep.findAllByOrderByTitle(pageable);
-                case PRICE -> itemPage = wareRep.findAllByOrderByPrice(pageable);
-            }
+            totalCount = wareRep.countAllBy();
+
+            wares = switch (sortKind) {
+                case NO    -> wareRep.findAllBy(pageable);
+                case ALPHA -> wareRep.findAllByOrderByTitle(pageable);
+                case PRICE -> wareRep.findAllByOrderByPrice(pageable);
+            };
         } else {
-            switch (sortKind) {
-                case NO -> itemPage = wareRep.findAllByTitleLikeIgnoreCase(search, pageable);
-                case ALPHA -> itemPage = wareRep.findAllByTitleLikeIgnoreCaseOrderByTitle(search, pageable);
-                case PRICE -> itemPage = wareRep.findAllByTitleLikeIgnoreCaseOrderByPrice(search, pageable);
-            }
+            totalCount = wareRep.countAllByTitleLikeIgnoreCase(search);
+
+            wares = switch (sortKind) {
+                case NO    -> wareRep.findAllByTitleLikeIgnoreCase(search, pageable);
+                case ALPHA -> wareRep.findAllByTitleLikeIgnoreCaseOrderByTitle(search, pageable);
+                case PRICE -> wareRep.findAllByTitleLikeIgnoreCaseOrderByPrice(search, pageable);
+            };
         }
 
-        Page<ItemDTO> dtoPage = itemPage.map(ItemMapper::toItemDTO);
-
-        //Актуализация количества для товаров, которые уже находятся в корзине
-        for (var orderItem : order.getItems()) {            //Товары заказа
-            for (var listItem : dtoPage.getContent()) {     //товары на странице
-                if (listItem.getId() == orderItem.getId())  //Если товар уже есть в заказе
-                    listItem.setCount(orderItem.getCount());//заполнить количество
-            }
-        }
-
-        return dtoPage;
+        return wares.map(ItemMapper::toItemDTO)
+                    .collectList()
+                    .zipWith(getOrder())
+                    .map(itemsAndOrder -> {
+                                //Актуализация количества для товаров, которые уже находятся в корзине
+                                for (var orderItem : itemsAndOrder.getT2().getItems()) {    //Товары заказа
+                                    for (var ware : itemsAndOrder.getT1()) {                //товары на странице
+                                        if (ware.getId() == orderItem.getId())
+                                            ware.setCount(orderItem.getCount());
+                                    }
+                                }
+                        return itemsAndOrder.getT1();}
+                    )
+                    .zipWith(totalCount)
+                    .map(ItemsAndCount -> new PageImpl<ItemDTO>(ItemsAndCount.getT1(),
+                                                                pageable,
+                                                                ItemsAndCount.getT2()));
     }
 
     /**
@@ -205,7 +262,34 @@ public class ShopServiceImpl implements ShopService {
      * @return
      */
     @Override
-    public OrderDTO getOrder(Long id) {
-        return OrderMapper.toOrderDTO(orderRep.getReferenceById(id));
+    public Mono<OrderDTO> getOrder(Long id) {
+        return orderRep.findById(id)
+                       .map(OrderMapper::toOrderDTO)
+                       .flatMap(order -> getOrderItems(order.getId())
+                       .collectList()
+                       .map(items -> {
+                           order.setItems(items);
+                           order.setTotalSum((float)items.stream()
+                                .mapToDouble(i -> i.getCount() * i.getPrice())
+                                .sum());
+                            return order;
+                       })
+               );
+    }
+
+    /**
+     * Получение только элементов заказа
+     * @param id    Идентификатор Заказа
+     * @return      Список элементов
+     */
+    private Flux<ItemDTO> getOrderItems(Long id) {
+        return itemRep.findAllByOrderIdOrderByIdDesc(id)
+                      .flatMap(item -> wareRep.findById(item.getWareId())
+                                              .map(ItemMapper::toItemDTO)
+                                              .map(dto -> {
+                                                  dto.setCount(item.getCount());
+                                                  return dto;
+                                              })
+                      );
     }
 }

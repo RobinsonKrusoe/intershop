@@ -2,6 +2,7 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 
 <head>
+    <meta charset="UTF-8">
     <title>Витрина товаров</title>
 </head>
 
@@ -53,7 +54,6 @@
                     <tr>
                         <td>
                             <a th:href="${'/items/'+item.getId()}">
-<!--                                <img width="300" height="300" th:src="${'http://localhost:8080/'+item.getImgPath()}">-->
                                 <img th:src="@{${'/images/'+item.getImageId()}}" width="300" height="300" />
                             </a>
                         </td>
@@ -71,7 +71,7 @@
                     </tr>
                     <tr>
                         <td>
-                            <form th:action="${'/main/items/'+item.getId()}" method="post">
+                            <form th:action="@{${'/main/items/'+item.getId()}}" method="post" enctype="multipart/form-data">
                                 <button name="action" value="MINUS">-</button>
                                 <span th:text="${item.getCount()}"></span>
                                 <button name="action" value="PLUS">+</button>

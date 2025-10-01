@@ -1,8 +1,8 @@
 package ru.yandex.practicum.intershop.model;
 
-import jakarta.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -10,7 +10,6 @@ import java.time.LocalDateTime;
  * Класс элемента корзины
 */
 
-@Entity
 @Table(name = "items")
 @Getter
 @Setter
@@ -18,18 +17,15 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class Item {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;                    //Идентификатор элемента корзины
-
-    @ManyToOne
-    @JoinColumn(name = "order_id")
-    private Order order;
-
-    @ManyToOne
-    @JoinColumn(name = "ware_id")
-    private Ware ware;
-
+    private long orderId;
+    private long wareId;
     private int count;
-    @CreationTimestamp
     private LocalDateTime createdAt;
+
+    public Item (long orderId, long wareId, int count) {
+        this.orderId = orderId;
+        this.wareId = wareId;
+        this.count = count;
+    }
 }

@@ -2,6 +2,7 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 
 <head>
+    <meta charset="UTF-8">
     <title>Витрина товаров</title>
 </head>
 
@@ -27,7 +28,7 @@
         <p>
             <span th:text="${item.getDescription()}"></span>
         </p>
-        <form th:action="${'/items/'+item.getId()}" method="post">
+        <form th:action="${'/items/'+item.getId()}" method="post" enctype="multipart/form-data">
             <button name="action" value="MINUS">-</button>
             <span th:text="${item.getCount()}"></span>
             <button name="action" value="PLUS">+</button>

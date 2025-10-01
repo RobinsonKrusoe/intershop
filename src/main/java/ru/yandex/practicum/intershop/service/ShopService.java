@@ -1,5 +1,7 @@
 package ru.yandex.practicum.intershop.service;
 
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import ru.yandex.practicum.intershop.dto.InWareDTO;
 import ru.yandex.practicum.intershop.dto.ItemDTO;
 import ru.yandex.practicum.intershop.dto.OrderDTO;
@@ -9,7 +11,6 @@ import org.springframework.data.domain.Pageable;
 import ru.yandex.practicum.intershop.model.SortKind;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
  * Класс сервиса для работы с магазином
@@ -20,31 +21,31 @@ public interface ShopService {
      * @param id        Идентификатор элемента корзины
      * @param action    Действие
      */
-    void changeItemAmount(Long id, ItemAction action);
+    Mono<Void> changeItemAmount(Long id, ItemAction action);
 
     /**
      * Получение активной корзины
      * @return Заказ
      */
-    OrderDTO getOrder();
+    Mono<OrderDTO> getOrder();
 
     /**
      * Получение элемента корзны
      * @param id Идентификатор элемента корзины
      * @return  Элемент корзины
      */
-    ItemDTO getItem(Long id);
+    Mono<ItemDTO> getItem(Long id);
 
     /**
      * Совершение покупки по активной корзине
      */
-    void buy();
+    Mono<Void> buy();
 
     /**
      * Получение всех заказов
      * @return  Список заказов
      */
-    List<OrderDTO> getAllOrders();
+    Flux<OrderDTO> getAllOrders();
 
     /**
      * Получение картинки товара
@@ -52,13 +53,13 @@ public interface ShopService {
      * @param id  Идентификатор товара
      * @return  Картинка
      */
-    byte[] getImage(Long id);
+    Mono<byte[]> getImage(Long id);
 
     /**
      * Добавление товара в базу
      * @param ware Товар
      */
-    void addWare(InWareDTO ware) throws IOException;
+    Mono<Void> addWare(InWareDTO ware) throws IOException;
 
     /**
      * Получение товаров с фильтрацией и пагинацией
@@ -68,12 +69,12 @@ public interface ShopService {
      * @param pageable  Пагинация
      * @return Страница товаров/элементов корзины
      */
-    Page<ItemDTO> findAllItemsPaginated(String search, SortKind sortKind, Pageable pageable);
+    Mono<Page<ItemDTO>> findAllItemsPaginated(String search, SortKind sortKind, Pageable pageable);
 
     /**
      * Получение заданного заказа
      * @param id Идентификатор заказа
      * @return Заказ
      */
-    OrderDTO getOrder(Long id);
+    Mono<OrderDTO> getOrder(Long id);
 }

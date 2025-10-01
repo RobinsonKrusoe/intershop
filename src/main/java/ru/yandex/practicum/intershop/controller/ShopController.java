@@ -1,28 +1,27 @@
 package ru.yandex.practicum.intershop.controller;
 
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.reactive.result.view.Rendering;
+import reactor.core.publisher.Mono;
 import ru.yandex.practicum.intershop.dto.InWareDTO;
 import ru.yandex.practicum.intershop.dto.ItemDTO;
-import ru.yandex.practicum.intershop.dto.OrderDTO;
 import ru.yandex.practicum.intershop.model.ItemAction;
 import ru.yandex.practicum.intershop.model.SortKind;
 import ru.yandex.practicum.intershop.model.Paging;
 import ru.yandex.practicum.intershop.service.ShopService;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Slf4j
-@RestController
+@Controller
 @RequestMapping("/")
 public class ShopController {
     private final ShopService serv;
@@ -36,8 +35,8 @@ public class ShopController {
      * @return - Шаблон items
      */
     @GetMapping("/")
-    public ModelAndView items() {
-        return new ModelAndView("redirect:/main/items");
+    public Mono<Rendering> items() {
+        return Mono.just(Rendering.redirectTo("/main/items").build());
     }
 
     /**
@@ -60,29 +59,30 @@ public class ShopController {
      *     				"hasPrevious" - можно ли пролистнуть назад
      */
     @GetMapping("/main/items")
-    public ModelAndView getMainPage(@RequestParam(name = "search", required = false) String search,
-                                    @RequestParam(name = "sort", required = false, defaultValue = "NO") String sort,
-                                    @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize,
-                                    @RequestParam(name = "pageNumber", required = false, defaultValue = "1") Integer pageNumber) {
+    public Mono<Rendering> getMainPage(@RequestParam(name = "search", required = false) String search,
+                                       @RequestParam(name = "sort", required = false, defaultValue = "NO") String sort,
+                                       @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize,
+                                       @RequestParam(name = "pageNumber", required = false, defaultValue = "1") Integer pageNumber) {
         log.info("Get getMainPage.");
 
-        Page<ItemDTO> page = serv.findAllItemsPaginated(search,
+        Mono<Page<ItemDTO>> page = serv.findAllItemsPaginated(search,
                                                         SortKind.valueOf(sort),
                                                         PageRequest.of(pageNumber - 1, pageSize));
 
-        List<List<ItemDTO>> sublists = IntStream.range(0, (1 + page.getContent().size())/2)
-                .mapToObj(i -> page.getContent().subList(2*i, Math.min(2 + (2*i), page.getContent().size())))
-                .collect(Collectors.toList());
-
-        ModelAndView mv = new ModelAndView("main");
-        mv.addObject ("items", sublists);
-        mv.addObject ("search", search);
-        mv.addObject ("sort", sort);
-        mv.addObject ("paging", new Paging(page.getPageable().getPageNumber() + 1,
-                page.getPageable().getPageSize(),
-                page.hasNext(),
-                page.hasPrevious()));
-        return mv;
+        return page.map(p -> Rendering
+                        .view("main")
+                        .modelAttribute("items", IntStream.range(0, (1 + p.getContent().size()) / 2)
+                                                                .mapToObj(i -> p.getContent()
+                                                                .subList(2 * i, Math.min(2 + (2 * i), p.getContent().size())))
+                                                                .collect(Collectors.toList()))
+                        .modelAttribute("search", search)
+                        .modelAttribute("sort", sort)
+                        .modelAttribute("paging", new Paging(p.getPageable().getPageNumber() + 1,
+                                p.getPageable().getPageSize(),
+                                p.hasNext(),
+                                p.hasPrevious()))
+                        .build())
+                .flatMap(Mono::just);
     }
 
     /**
@@ -92,14 +92,14 @@ public class ShopController {
      * 	Возвращает:
      * 		редирект на "/main/items"
      */
-    @PostMapping(path = "/main/items/{id}")
-    public ModelAndView mainPageAmountChange(@PathVariable("id") Long id,
-                                         @RequestParam("action") String action){
+    @PostMapping(path = "/main/items/{id}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE })
+    public Mono<Rendering> mainPageAmountChange(@PathVariable("id") Long id,
+                                                @RequestPart("action") String action){
+
         log.info("Post mainPageAmountChange id - {}, action - {}", id, action);
 
-        serv.changeItemAmount(id, ItemAction.valueOf(action));
-
-        return new ModelAndView("redirect:/main/items");
+        return serv.changeItemAmount(id, ItemAction.valueOf(action))
+                   .thenReturn(Rendering.redirectTo("/main/items").build());
     }
 
     /**
@@ -112,18 +112,20 @@ public class ShopController {
      * 			"empty" - true, если в корзину не добавлен ни один товар
      */
     @GetMapping("/cart/items")
-    public ModelAndView getCart() {
+    public Mono<Rendering> getCart() {
         log.info("Get getCart.");
 
-        OrderDTO order = serv.getOrder();
 
-        ModelAndView mv = new ModelAndView("cart");
-        mv.addObject ("items", order.getItems());
-        mv.addObject ("total", order.getTotalSum());
-        mv.addObject ("empty", order.getItems().isEmpty());
-
-        return mv;
+        return serv.getOrder()
+                        .map(o -> Rendering
+                                .view("cart")
+                                .modelAttribute("items", o.getItems())
+                                .modelAttribute("total", o.getTotalSum())
+                                .modelAttribute("empty", o.getItems().isEmpty())
+                                .build())
+                        .flatMap(Mono::just);
     }
+
     /**
      * д) POST "/cart/items/{id}" - изменить количество товара на странице корзины
      * 	Параматры:
@@ -131,14 +133,13 @@ public class ShopController {
      * 	Возвращает:
      * 		редирект на "/cart/items"
      */
-    @PostMapping(path = "/cart/items/{id}")
-    public ModelAndView cartPageAmountChange(@PathVariable("id") Long id,
-                                         @RequestParam("action") String action){
+    @PostMapping(path = "/cart/items/{id}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE })
+    public Mono<Rendering> cartPageAmountChange(@PathVariable("id") Long id,
+                                                @RequestPart("action") String action){
         log.info("Post cartPageAmountChange id - {}, action - {}", id, action);
 
-        serv.changeItemAmount(id, ItemAction.valueOf(action));
-
-        return new ModelAndView("redirect:/cart/items");
+        return serv.changeItemAmount(id, ItemAction.valueOf(action))
+                   .thenReturn(Rendering.redirectTo("/cart/items").build());
     }
 
     /**
@@ -148,16 +149,15 @@ public class ShopController {
      * 		используется модель для заполнения шаблона:
      * 			"item" - товаров (id, title, decription, imgPath, count, price)
      */
-    @GetMapping(path = "/items/{id}")
-    public ModelAndView getItem(@PathVariable("id") Long id){
-        log.info("Get getItem id{}", id);
+    @GetMapping("/items/{id}")
+    public Mono<Rendering> getItem(@PathVariable(name = "id") Long id){
+        log.info("Get getItem id - {}", id);
 
-        ItemDTO item = serv.getItem(id);
-
-        ModelAndView mv = new ModelAndView("item");
-        mv.addObject ("item", item);
-
-        return mv;
+        return serv.getItem(id)
+                   .map(i -> Rendering.view("item")
+                                      .modelAttribute("item", i)
+                                      .build()
+                       );
     }
 
     /**
@@ -167,14 +167,13 @@ public class ShopController {
      * 	Возвращает:
      * 		редирект на "/items/{id}"
      */
-    @PostMapping(path = "/items/{id}")
-    public ModelAndView itemPageAmountChange(@PathVariable("id") Long id,
-                                             @RequestParam("action") String action){
+    @PostMapping(path = "/items/{id}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE })
+    public Mono<Rendering> itemPageAmountChange(@PathVariable("id") Long id,
+                                                @RequestPart("action") String action){
         log.info("Post itemPageAmountChange id - {}, action - {}", id, action);
 
-        serv.changeItemAmount(id, ItemAction.valueOf(action));
-
-        return new ModelAndView("redirect:/items/" + id);
+        return serv.changeItemAmount(id, ItemAction.valueOf(action))
+                   .thenReturn(Rendering.redirectTo("/items/" + id).build());
     }
 
     /**
@@ -182,15 +181,16 @@ public class ShopController {
      *	Возвращает:
      *		редирект на "/orders/{id}?newOrder=true"
      */
-    @PostMapping(path = "/buy")
-    public ModelAndView buy(){
+    @PostMapping("/buy")
+    public Mono<Rendering> buy(){
         log.info("Get buy ");
 
-        long orderId = serv.getOrder().getId();
-
-        serv.buy();
-
-        return new ModelAndView("redirect:/orders/" + orderId + "?newOrder=true");
+        return serv.getOrder()
+                   .flatMap(o -> serv.buy()
+                                     .thenReturn(Rendering.redirectTo("/orders/" + o.getId() + "?newOrder=true")
+                                                          .build()
+                                      )
+                    );
     }
 
     /**
@@ -202,16 +202,16 @@ public class ShopController {
      * 				"id" - идентификатор заказа
      *      	 "items" - List<Item> - список товаров в заказе (id, title, decription, imgPath, count, price)
      */
-    @GetMapping(path = "/orders")
-    public ModelAndView getOrders(){
+    @GetMapping("/orders")
+    public Mono<Rendering> getOrders(){
         log.info("Get getOrders");
 
-        List<OrderDTO> orders = serv.getAllOrders();
-
-        ModelAndView mv = new ModelAndView("orders");
-        mv.addObject("orders", orders);
-
-        return mv;
+        return serv.getAllOrders()
+                   .collectList()
+                   .map(lo -> Rendering.view("orders")
+                                       .modelAttribute("orders", lo)
+                                       .build()
+                   );
     }
 
     /**
@@ -226,17 +226,17 @@ public class ShopController {
      * 			"items" - List<Item> - список товаров в заказе (id, title, decription, imgPath, count, price)
      * 			"newOrder" - true, если переход со страницы оформления заказа (по умолчанию, false)
      */
-    @GetMapping(path = "/orders/{id}")
-    public ModelAndView getOrder(@PathVariable("id") Long id,
-                                 @RequestParam(name ="newOrder", required = false, defaultValue = "false") String newOrder){
-        log.info("Get getOrder id{}", id);
+    @GetMapping("/orders/{id}")
+    public Mono<Rendering> getOrder(@PathVariable(name = "id") Long id,
+                                    @RequestParam(name ="newOrder", required = false, defaultValue = "false") String newOrder){
+        log.info("Get getOrder id {}", id);
 
-        OrderDTO order = serv.getOrder(id);
-
-        ModelAndView mv = new ModelAndView("order");
-        mv.addObject("order", order);
-        mv.addObject("newOrder", newOrder);
-        return mv;
+        return serv.getOrder(id)
+                   .map(o -> Rendering.view("order")
+                                      .modelAttribute("order", o)
+                                      .modelAttribute("newOrder", newOrder)
+                                      .build()
+                );
     }
 
     /**
@@ -246,36 +246,33 @@ public class ShopController {
      * @return Массив байт картинки
      */
     @GetMapping("/images/{id}")
-    public void getImage(@PathVariable("id") Long id, HttpServletResponse response) throws IOException {
+    public @ResponseBody Mono<byte[]> getImage(@PathVariable(name = "id") Long id) throws IOException {
         log.info("Get getImage id={}", id);
 
-        byte[] imgBytes = serv.getImage(id);
-        response.setContentType("image/jpeg, image/jpg, image/png, image/gif");
-        response.getOutputStream().write(imgBytes);
-        response.getOutputStream().close();
+        Mono<byte[]> imgBytes = serv.getImage(id);
+        return imgBytes;
     }
 
     @GetMapping("/add/ware")
-    public ModelAndView getAddWare(){
+    public Mono<Rendering> getAddWare(){
         log.info("Get getAddWare");
 
-        return new ModelAndView("add-ware");
+        return Mono.just(Rendering.view("add-ware").build());
     }
 
     @PostMapping(path = "/add/ware", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE })
-    public ModelAndView addWare(@RequestParam("title") String title,
-                                @RequestParam("description") String description,
-                                @RequestParam("price") Float price,
-                                @RequestParam("image") MultipartFile image) throws IOException {
+    public Mono<Rendering> addWare(@RequestParam("title") String title,
+                                   @RequestParam("description") String description,
+                                   @RequestParam("price") Float price,
+                                   @RequestParam("image") MultipartFile image) throws IOException {
         log.info("Post addWare title={}, description={}, price={}", title, description, price);
 
-        serv.addWare(InWareDTO.builder()
-                        .title(title)
-                        .description(description)
-                        .price(price)
-                        .image(image)
-                        .build());
-
-        return new ModelAndView("redirect:/add/ware");
+        return serv.addWare(InWareDTO.builder()
+                                     .title(title)
+                                     .description(description)
+                                     .price(price)
+                                     .image(image)
+                                     .build())
+                   .thenReturn(Rendering.redirectTo("/add/ware").build());
     }
 }
