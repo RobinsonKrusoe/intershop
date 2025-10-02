@@ -10,8 +10,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import ru.yandex.practicum.intershop.model.SortKind;
 
-import java.io.IOException;
-
 /**
  * Класс сервиса для работы с магазином
  */
@@ -59,7 +57,7 @@ public interface ShopService {
      * Добавление товара в базу
      * @param ware Товар
      */
-    Mono<Void> addWare(InWareDTO ware) throws IOException;
+    Mono<Void> addWare(InWareDTO ware);
 
     /**
      * Получение товаров с фильтрацией и пагинацией

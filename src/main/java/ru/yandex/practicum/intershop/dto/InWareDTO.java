@@ -1,7 +1,6 @@
 package ru.yandex.practicum.intershop.dto;
 
 import lombok.*;
-import org.springframework.web.multipart.MultipartFile;
 
 @Getter
 @Setter
@@ -10,6 +9,6 @@ import org.springframework.web.multipart.MultipartFile;
 public class InWareDTO {
     private String title;
     private String description;
-    private MultipartFile image;
+    private byte[] image;
     private float price;
 }

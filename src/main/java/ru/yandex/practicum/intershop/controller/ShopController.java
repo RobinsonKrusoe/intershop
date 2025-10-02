@@ -1,12 +1,13 @@
 package ru.yandex.practicum.intershop.controller;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.MediaType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.result.view.Rendering;
 import reactor.core.publisher.Mono;
 import ru.yandex.practicum.intershop.dto.InWareDTO;
@@ -261,18 +262,20 @@ public class ShopController {
     }
 
     @PostMapping(path = "/add/ware", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE })
-    public Mono<Rendering> addWare(@RequestParam("title") String title,
-                                   @RequestParam("description") String description,
-                                   @RequestParam("price") Float price,
-                                   @RequestParam("image") MultipartFile image) throws IOException {
-        log.info("Post addWare title={}, description={}, price={}", title, description, price);
+    public Mono<Rendering> addWare(@RequestPart("title") String title,
+                                   @RequestPart("description") String description,
+                                   @RequestPart("price") String price,
+                                   @RequestPart("image") FilePart image) throws IOException {
+        log.info("Post addWare title={}, description={}, price={}, image={}", title, description, price, image);
 
-        return serv.addWare(InWareDTO.builder()
-                                     .title(title)
-                                     .description(description)
-                                     .price(price)
-                                     .image(image)
-                                     .build())
-                   .thenReturn(Rendering.redirectTo("/add/ware").build());
+        return DataBufferUtils.join(image.content())
+                .map(dataBuffer -> dataBuffer.asByteBuffer().array())
+                .flatMap(img -> serv.addWare(InWareDTO.builder()
+                                                        .title(title)
+                                                        .description(description)
+                                                        .price(Float.parseFloat(price))
+                                                        .image(img)
+                                                        .build()))
+                .thenReturn(Rendering.redirectTo("/add/ware").build());
     }
 }

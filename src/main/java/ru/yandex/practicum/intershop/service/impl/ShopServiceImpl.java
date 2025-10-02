@@ -21,8 +21,6 @@ import ru.yandex.practicum.intershop.service.ShopService;
 
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.IOException;
-
 /**
  * Сервис для работы с корзиной покупок
  */
@@ -200,9 +198,8 @@ public class ShopServiceImpl implements ShopService {
      */
     @Override
     @Transactional
-    public Mono<Void> addWare(InWareDTO ware) throws IOException {
-        Ware newWare = WareMapper.toWare(ware);
-        return wareRep.save(newWare).then();
+    public Mono<Void> addWare(InWareDTO ware)  {
+        return wareRep.save(WareMapper.toWare(ware)).then();
     }
 
     /**
