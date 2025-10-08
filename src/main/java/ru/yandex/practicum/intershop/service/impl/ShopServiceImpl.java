@@ -21,6 +21,8 @@ import ru.yandex.practicum.intershop.service.ShopService;
 
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.List;
+
 /**
  * Сервис для работы с корзиной покупок
  */
@@ -234,23 +236,27 @@ public class ShopServiceImpl implements ShopService {
             };
         }
 
-        return wares.map(ItemMapper::toItemDTO)
-                    .collectList()
-                    .zipWith(getOrder())
-                    .map(itemsAndOrder -> {
-                                //Актуализация количества для товаров, которые уже находятся в корзине
-                                for (var orderItem : itemsAndOrder.getT2().getItems()) {    //Товары заказа
-                                    for (var ware : itemsAndOrder.getT1()) {                //товары на странице
-                                        if (ware.getId() == orderItem.getId())
-                                            ware.setCount(orderItem.getCount());
-                                    }
-                                }
-                        return itemsAndOrder.getT1();}
-                    )
-                    .zipWith(totalCount)
-                    .map(ItemsAndCount -> new PageImpl<ItemDTO>(ItemsAndCount.getT1(),
-                                                                pageable,
-                                                                ItemsAndCount.getT2()));
+        //Все доступные/отфильтрованные товары на странице
+        Mono<List<ItemDTO>> wareDTOList = wares.map(ItemMapper::toItemDTO).collectList();
+
+        //Товары уже находящиеся в корзине
+        Mono<List<ItemDTO>> orderItemsList = getOrder().map(OrderDTO::getItems);
+
+        //Актуализация количества для товаров, которые уже находятся в корзине
+        wareDTOList = wareDTOList.zipWith(orderItemsList, (wareList, orderItems) -> {
+            for (var orderItem : orderItems) {    //Товары заказа
+                for (var ware : wareList) {       //товары на странице
+                    if (ware.getId() == orderItem.getId())
+                        ware.setCount(orderItem.getCount());
+                }
+            }
+            return wareList;
+        });
+
+        return wareDTOList
+                    .zipWith(totalCount, (wareList, waresCount) -> new PageImpl<ItemDTO>(wareList,
+                                                                                         pageable,
+                                                                                         waresCount));
     }
 
     /**
