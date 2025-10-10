@@ -196,7 +196,7 @@ public class ShopServiceTest {
 
 		assertNotNull(ware);	//Товар должен быть в базе
 		//Атрибуты товара должны соответствовать отправленным в базу
-		assertEquals(ware1.getDescription(), ware.getDescription());
+		assertEquals(ware1.getTitle(), ware.getTitle());
 		assertEquals(ware1.getDescription(), ware.getDescription());
 		assertEquals(ware1.getPrice(), ware.getPrice());
 		assertEquals(ware1.getImage().length, ware.getImage().length);
