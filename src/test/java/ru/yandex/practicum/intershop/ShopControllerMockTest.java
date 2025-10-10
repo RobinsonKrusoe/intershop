@@ -83,7 +83,6 @@ class ShopControllerMockTest {
 	 * Тест вызова главной страницы
 	 */
 	@Test
-	//@Sql("/test-truncate.sql")
 	void testGetMainPage() throws Exception {
 		Mockito.when(shopServ.findAllItemsPaginated(any(), any(), any()))
 			   .thenReturn(Mono.just(new PageImpl<ItemDTO>(List.of(item1, item2),
