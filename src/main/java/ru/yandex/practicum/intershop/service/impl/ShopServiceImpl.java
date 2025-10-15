@@ -16,10 +16,10 @@ import ru.yandex.practicum.intershop.mapper.WareMapper;
 import ru.yandex.practicum.intershop.model.*;
 import ru.yandex.practicum.intershop.repository.ItemRep;
 import ru.yandex.practicum.intershop.repository.OrderRep;
-import ru.yandex.practicum.intershop.repository.WareRep;
 import ru.yandex.practicum.intershop.service.ShopService;
 
 import lombok.extern.slf4j.Slf4j;
+import ru.yandex.practicum.intershop.service.WareService;
 
 import java.util.List;
 
@@ -32,12 +32,12 @@ import java.util.List;
 public class ShopServiceImpl implements ShopService {
     private final ItemRep itemRep;
     private final OrderRep orderRep;
-    private final WareRep wareRep;
+    private final WareService wareServ;
 
-    public ShopServiceImpl(ItemRep itemRep, OrderRep orderRep, WareRep wareRep) {
+    public ShopServiceImpl(ItemRep itemRep, OrderRep orderRep, WareService wareServ) {
         this.itemRep = itemRep;
         this.orderRep = orderRep;
-        this.wareRep = wareRep;
+        this.wareServ = wareServ;
     }
 
     /**
@@ -138,7 +138,7 @@ public class ShopServiceImpl implements ShopService {
         return geActiveOrder()
                 .flatMap(order -> itemRep.findByOrderIdAndWareId(order.getId(), id))
                 .switchIfEmpty(Mono.just(new Item()))
-                .zipWith(wareRep.findById(id)
+                .zipWith(wareServ.findById(id)
                                 .map(ItemMapper::toItemDTO)
                 )
                 .map(itemAndWare -> {
@@ -153,10 +153,10 @@ public class ShopServiceImpl implements ShopService {
     @Override
     @Transactional
     public Mono<Void> buy() {
-        return geActiveOrder().flatMap(o -> {
-                                                o.setStat(OrderStatus.BUY);
-                                                return orderRep.save(o);
-                                             }
+        return geActiveOrder().flatMap(order -> {
+                                                    order.setStat(OrderStatus.BUY);
+                                                    return orderRep.save(order);
+                                                }
                                        )
                               .then();
     }
@@ -191,7 +191,7 @@ public class ShopServiceImpl implements ShopService {
      */
     @Override
     public Mono<byte[]> getImage(Long id) {
-        return wareRep.findById(id).map(Ware::getImage);
+        return wareServ.findById(id).map(Ware::getImage);
     }
 
     /**
@@ -201,7 +201,7 @@ public class ShopServiceImpl implements ShopService {
     @Override
     @Transactional
     public Mono<Void> addWare(InWareDTO ware)  {
-        return wareRep.save(WareMapper.toWare(ware)).then();
+        return wareServ.save(WareMapper.toWare(ware)).then();
     }
 
     /**
@@ -219,20 +219,20 @@ public class ShopServiceImpl implements ShopService {
 
         //Подготовка нужной выборки
         if (search == null || search.isEmpty()) {
-            totalCount = wareRep.countAllBy();
+            totalCount = wareServ.countAllBy();
 
             wares = switch (sortKind) {
-                case NO    -> wareRep.findAllBy(pageable);
-                case ALPHA -> wareRep.findAllByOrderByTitle(pageable);
-                case PRICE -> wareRep.findAllByOrderByPrice(pageable);
+                case NO    -> wareServ.findAllBy(pageable);
+                case ALPHA -> wareServ.findAllByOrderByTitle(pageable);
+                case PRICE -> wareServ.findAllByOrderByPrice(pageable);
             };
         } else {
-            totalCount = wareRep.countAllByTitleLikeIgnoreCase(search);
+            totalCount = wareServ.countAllByTitleLikeIgnoreCase(search);
 
             wares = switch (sortKind) {
-                case NO    -> wareRep.findAllByTitleLikeIgnoreCase(search, pageable);
-                case ALPHA -> wareRep.findAllByTitleLikeIgnoreCaseOrderByTitle(search, pageable);
-                case PRICE -> wareRep.findAllByTitleLikeIgnoreCaseOrderByPrice(search, pageable);
+                case NO    -> wareServ.findAllByTitleLikeIgnoreCase(search, pageable);
+                case ALPHA -> wareServ.findAllByTitleLikeIgnoreCaseOrderByTitle(search, pageable);
+                case PRICE -> wareServ.findAllByTitleLikeIgnoreCaseOrderByPrice(search, pageable);
             };
         }
 
@@ -287,7 +287,7 @@ public class ShopServiceImpl implements ShopService {
      */
     private Flux<ItemDTO> getOrderItems(Long id) {
         return itemRep.findAllByOrderIdOrderByIdDesc(id)
-                      .flatMap(item -> wareRep.findById(item.getWareId())
+                      .flatMap(item -> wareServ.findById(item.getWareId())
                                               .map(ItemMapper::toItemDTO)
                                               .map(dto -> {
                                                   dto.setCount(item.getCount());

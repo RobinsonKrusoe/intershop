@@ -9,14 +9,14 @@ import ru.yandex.practicum.intershop.model.Ware;
 
 @Repository
 public interface WareRep extends R2dbcRepository<Ware, Long> {
-    //Набор выборок товаров с поиском/без и сортировкой/без по названию или цене
-    Flux<Ware> findAllBy(Pageable pageable);
-    Flux<Ware> findAllByOrderByPrice(Pageable pageable);
-    Flux<Ware> findAllByOrderByTitle(Pageable pageable);
-    Flux<Ware> findAllByTitleLikeIgnoreCase(String search, Pageable pageable);
-    Flux<Ware> findAllByTitleLikeIgnoreCaseOrderByPrice(String search, Pageable pageable);
-    Flux<Ware> findAllByTitleLikeIgnoreCaseOrderByTitle(String search, Pageable pageable);
-
     Mono<Long> countAllBy();
     Mono<Long> countAllByTitleLikeIgnoreCase(String search);
+
+    //Набор выборок товаров с поиском/без и сортировкой/без по названию или цене
+    Flux<Long> findAllIdBy(Pageable pageable);
+    Flux<Long> findAllIdByOrderByPrice(Pageable pageable);
+    Flux<Long> findAllIdByOrderByTitle(Pageable pageable);
+    Flux<Long> findAllIdByTitleLikeIgnoreCase(String search, Pageable pageable);
+    Flux<Long> findAllIdByTitleLikeIgnoreCaseOrderByPrice(String search, Pageable pageable);
+    Flux<Long> findAllIdByTitleLikeIgnoreCaseOrderByTitle(String search, Pageable pageable);
 }
