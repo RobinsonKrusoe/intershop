@@ -139,7 +139,7 @@ public class ShopServiceImpl implements ShopService {
                 .flatMap(order -> itemRep.findByOrderIdAndWareId(order.getId(), id))
                 .switchIfEmpty(Mono.just(new Item()))
                 .zipWith(wareServ.findById(id)
-                                .map(ItemMapper::toItemDTO)
+                                 .map(ItemMapper::toItemDTO)
                 )
                 .map(itemAndWare -> {
                     itemAndWare.getT2().setCount(itemAndWare.getT1().getCount());
@@ -214,30 +214,13 @@ public class ShopServiceImpl implements ShopService {
      */
     @Override
     public Mono<Page<ItemDTO>> findAllItemsPaginated(String search, SortKind sortKind, Pageable pageable) {
-        Flux<Ware> wares = null;
-        Mono<Long> totalCount = null;
-
-        //Подготовка нужной выборки
-        if (search == null || search.isEmpty()) {
-            totalCount = wareServ.countAllBy();
-
-            wares = switch (sortKind) {
-                case NO    -> wareServ.findAllBy(pageable);
-                case ALPHA -> wareServ.findAllByOrderByTitle(pageable);
-                case PRICE -> wareServ.findAllByOrderByPrice(pageable);
-            };
-        } else {
-            totalCount = wareServ.countAllByTitleLikeIgnoreCase(search);
-
-            wares = switch (sortKind) {
-                case NO    -> wareServ.findAllByTitleLikeIgnoreCase(search, pageable);
-                case ALPHA -> wareServ.findAllByTitleLikeIgnoreCaseOrderByTitle(search, pageable);
-                case PRICE -> wareServ.findAllByTitleLikeIgnoreCaseOrderByPrice(search, pageable);
-            };
-        }
+        //Всего товаров в выборке
+        Mono<Long> totalCount = wareServ.wareCount(search);
 
         //Все доступные/отфильтрованные товары на странице
-        Mono<List<ItemDTO>> wareDTOList = wares.map(ItemMapper::toItemDTO).collectList();
+        Mono<List<ItemDTO>> wareDTOList = wareServ.searchWares(search, sortKind, pageable)
+                                                  .map(ItemMapper::toItemDTO)
+                                                  .collectList();
 
         //Товары уже находящиеся в корзине
         Mono<List<ItemDTO>> orderItemsList = getOrder().map(OrderDTO::getItems);
@@ -253,10 +236,9 @@ public class ShopServiceImpl implements ShopService {
             return wareList;
         });
 
-        return wareDTOList
-                    .zipWith(totalCount, (wareList, waresCount) -> new PageImpl<ItemDTO>(wareList,
-                                                                                         pageable,
-                                                                                         waresCount));
+        return wareDTOList.zipWith(totalCount, (wareList, waresCount) -> new PageImpl<ItemDTO>(wareList,
+                                                                                               pageable,
+                                                                                               waresCount));
     }
 
     /**
@@ -269,15 +251,15 @@ public class ShopServiceImpl implements ShopService {
         return orderRep.findById(id)
                        .map(OrderMapper::toOrderDTO)
                        .flatMap(order -> getOrderItems(order.getId())
-                       .collectList()
-                       .map(items -> {
-                           order.setItems(items);
-                           order.setTotalSum((float)items.stream()
-                                .mapToDouble(i -> i.getCount() * i.getPrice())
-                                .sum());
-                            return order;
-                       })
-               );
+                                           .collectList()
+                                           .map(items -> {
+                                               order.setItems(items);
+                                               order.setTotalSum((float)items.stream()
+                                                    .mapToDouble(i -> i.getCount() * i.getPrice())
+                                                    .sum());
+                                                return order;
+                                           })
+                       );
     }
 
     /**

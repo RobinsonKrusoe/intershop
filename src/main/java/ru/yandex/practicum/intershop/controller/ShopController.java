@@ -1,5 +1,8 @@
 package ru.yandex.practicum.intershop.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.MediaType;
@@ -21,6 +24,10 @@ import java.io.IOException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+/**
+ * Контроллер для работы с корзиной покупок в интернет магазине
+ */
+@Tag(name = "ShopController", description = "Контроллер для работы с корзиной покупок в интернет магазине")
 @Slf4j
 @Controller
 @RequestMapping("/")
@@ -35,6 +42,7 @@ public class ShopController {
      * а) GET "/" - редирект на "/main/items"
      * @return - Шаблон items
      */
+    @Operation(summary = "Вывод главной формы")
     @GetMapping("/")
     public Mono<Rendering> items() {
         return Mono.just(Rendering.redirectTo("/main/items").build());
@@ -59,10 +67,15 @@ public class ShopController {
      *     				"hasNext" - можно ли пролистнуть вперед
      *     				"hasPrevious" - можно ли пролистнуть назад
      */
+    @Operation(summary = "Вывод списка товаров на главной странице")
     @GetMapping("/main/items")
-    public Mono<Rendering> getMainPage(@RequestParam(name = "search", required = false) String search,
+    public Mono<Rendering> getMainPage(@Parameter(description = "Строка поиска", required = false)
+                                       @RequestParam(name = "search", required = false) String search,
+                                       @Parameter(description = "Вид сортировки", required = false)
                                        @RequestParam(name = "sort", required = false, defaultValue = "NO") String sort,
+                                       @Parameter(description = "Размер страницы", required = false)
                                        @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize,
+                                       @Parameter(description = "Номер страницы", required = false)
                                        @RequestParam(name = "pageNumber", required = false, defaultValue = "1") Integer pageNumber) {
         log.info("Get getMainPage.");
 
@@ -93,8 +106,11 @@ public class ShopController {
      * 	Возвращает:
      * 		редирект на "/main/items"
      */
+    @Operation(summary = "Изменение количества товара для главной страницы")
     @PostMapping(path = "/main/items/{id}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE })
-    public Mono<Rendering> mainPageAmountChange(@PathVariable("id") Long id,
+    public Mono<Rendering> mainPageAmountChange(@Parameter(description = "ID товара", required = true)
+                                                @PathVariable("id") Long id,
+                                                @Parameter(description = "Действие над количеством товара в корзине", required = true)
                                                 @RequestPart("action") String action){
 
         log.info("Post mainPageAmountChange id - {}, action - {}", id, action);
@@ -112,6 +128,7 @@ public class ShopController {
      * 			"total" - суммарная стоимость заказа
      * 			"empty" - true, если в корзину не добавлен ни один товар
      */
+    @Operation(summary = "Вывод товаров корзины")
     @GetMapping("/cart/items")
     public Mono<Rendering> getCart() {
         log.info("Get getCart.");
@@ -134,8 +151,11 @@ public class ShopController {
      * 	Возвращает:
      * 		редирект на "/cart/items"
      */
+    @Operation(summary = "Изменение количества товара для страницы корзины")
     @PostMapping(path = "/cart/items/{id}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE })
-    public Mono<Rendering> cartPageAmountChange(@PathVariable("id") Long id,
+    public Mono<Rendering> cartPageAmountChange(@Parameter(description = "ID товара", required = true)
+                                                @PathVariable("id") Long id,
+                                                @Parameter(description = "Действие над количеством товара в корзине", required = true)
                                                 @RequestPart("action") String action){
         log.info("Post cartPageAmountChange id - {}, action - {}", id, action);
 
@@ -150,8 +170,10 @@ public class ShopController {
      * 		используется модель для заполнения шаблона:
      * 			"item" - товаров (id, title, decription, imgPath, count, price)
      */
+    @Operation(summary = "Вывод карточки товара")
     @GetMapping("/items/{id}")
-    public Mono<Rendering> getItem(@PathVariable(name = "id") Long id){
+    public Mono<Rendering> getItem(@Parameter(description = "ID товара", required = true)
+                                   @PathVariable(name = "id") Long id){
         log.info("Get getItem id - {}", id);
 
         return serv.getItem(id)
@@ -168,8 +190,11 @@ public class ShopController {
      * 	Возвращает:
      * 		редирект на "/items/{id}"
      */
+    @Operation(summary = "Изменение количества товара для карточки товара")
     @PostMapping(path = "/items/{id}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE })
-    public Mono<Rendering> itemPageAmountChange(@PathVariable("id") Long id,
+    public Mono<Rendering> itemPageAmountChange(@Parameter(description = "ID товара", required = true)
+                                                @PathVariable("id") Long id,
+                                                @Parameter(description = "Действие над количеством товара в корзине", required = true)
                                                 @RequestPart("action") String action){
         log.info("Post itemPageAmountChange id - {}, action - {}", id, action);
 
@@ -182,6 +207,7 @@ public class ShopController {
      *	Возвращает:
      *		редирект на "/orders/{id}?newOrder=true"
      */
+    @Operation(summary = "Совершение покупки")
     @PostMapping("/buy")
     public Mono<Rendering> buy(){
         log.info("Get buy ");
@@ -203,6 +229,7 @@ public class ShopController {
      * 				"id" - идентификатор заказа
      *      	 "items" - List<Item> - список товаров в заказе (id, title, decription, imgPath, count, price)
      */
+    @Operation(summary = "Получение списка заказов")
     @GetMapping("/orders")
     public Mono<Rendering> getOrders(){
         log.info("Get getOrders");
@@ -227,8 +254,11 @@ public class ShopController {
      * 			"items" - List<Item> - список товаров в заказе (id, title, decription, imgPath, count, price)
      * 			"newOrder" - true, если переход со страницы оформления заказа (по умолчанию, false)
      */
+    @Operation(summary = "Получение заказа")
     @GetMapping("/orders/{id}")
-    public Mono<Rendering> getOrder(@PathVariable(name = "id") Long id,
+    public Mono<Rendering> getOrder(@Parameter(description = "ID заказа", required = true)
+                                    @PathVariable(name = "id") Long id,
+                                    @Parameter(description = "Признак нового заказа", required = false)
                                     @RequestParam(name ="newOrder", required = false, defaultValue = "false") String newOrder){
         log.info("Get getOrder id {}", id);
 
@@ -246,14 +276,17 @@ public class ShopController {
      * @param id - идентификатор товара
      * @return Массив байт картинки
      */
+    @Operation(summary = "Получение изображения товара в виде набора байт.")
     @GetMapping("/images/{id}")
-    public @ResponseBody Mono<byte[]> getImage(@PathVariable(name = "id") Long id) throws IOException {
+    public @ResponseBody Mono<byte[]> getImage(@Parameter(description = "ID товара", required = true)
+                                               @PathVariable(name = "id") Long id) throws IOException {
         log.info("Get getImage id={}", id);
 
         Mono<byte[]> imgBytes = serv.getImage(id);
         return imgBytes;
     }
 
+    @Operation(summary = "Возвращает форму добавления товара")
     @GetMapping("/add/ware")
     public Mono<Rendering> getAddWare(){
         log.info("Get getAddWare");
@@ -261,10 +294,15 @@ public class ShopController {
         return Mono.just(Rendering.view("add-ware").build());
     }
 
+    @Operation(summary = "Добавление нового товара в базу")
     @PostMapping(path = "/add/ware", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE })
-    public Mono<Rendering> addWare(@RequestPart("title") String title,
+    public Mono<Rendering> addWare(@Parameter(description = "Название товара", required = true)
+                                   @RequestPart("title") String title,
+                                   @Parameter(description = "Описание товара", required = true)
                                    @RequestPart("description") String description,
+                                   @Parameter(description = "Цена товара", required = true)
                                    @RequestPart("price") String price,
+                                   @Parameter(description = "Файл изображения товара", required = true)
                                    @RequestPart("image") FilePart image) throws IOException {
         log.info("Post addWare title={}, description={}, price={}, image={}", title, description, price, image);
 
